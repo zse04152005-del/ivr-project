@@ -1,8 +1,11 @@
 """FastAPI 入口文件"""
 import logging
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from database import init_db
 from routers import patients, tasks, appointments
@@ -49,16 +52,25 @@ app.include_router(stats.router)
 app.include_router(twilio_webhook.router)
 
 
-@app.get("/", tags=["系统"])
-def root():
-    return {
-        "system": "老年人体检预约 IVR 自动外呼系统",
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs",
-    }
+@app.get("/health", tags=["系统"])
+def health():
+    return {"status": "ok", "version": "1.0.0"}
+
+
+# ── 托管前端静态文件（生产构建后存在 static/ 目录）──────────────────────────
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+if os.path.exists(_STATIC_DIR):
+    # 挂载 JS/CSS 等资源文件
+    app.mount("/assets", StaticFiles(directory=os.path.join(_STATIC_DIR, "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str):
+        """所有非 API 路由都返回 index.html，交给 React Router 处理。"""
+        return FileResponse(os.path.join(_STATIC_DIR, "index.html"))
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

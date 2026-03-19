@@ -24,6 +24,7 @@ logs/
 node_modules/
 frontend/dist/
 frontend/.vite/
+backend/static/
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
 .DS_Store
